@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔️ LLM Battle Arena</title>
+<meta name="description" content="LLM Battle Arena - Ask anything and watch two AI models battle in real time with scores, verdicts, and a live leaderboard.">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #0f0f1a; color: #e2e8f0; min-height: 100vh; overflow-x: hidden; }
+
+  /* Animated gradient border */
+  @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  @keyframes rotate-gradient { to { --angle: 360deg; } }
+  .arena-card-border {
+    background: conic-gradient(from var(--angle), #7c3aed, #06b6d4, #7c3aed, #06b6d4, #7c3aed);
+    animation: rotate-gradient 4s linear infinite;
+    padding: 2px;
+    border-radius: 1.25rem;
+  }
+  .arena-card-inner { background: #1a1a2e; border-radius: 1.15rem; }
+
+  /* Shimmer */
+  @keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(124,58,237,0.08) 40%, rgba(6,182,212,0.12) 60%, transparent 100%);
+    background-size: 800px 100%;
+    animation: shimmer 1.8s infinite;
+  }
+
+  /* Pulse button */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 15px rgba(124,58,237,0.4); }
+    50% { box-shadow: 0 0 30px rgba(124,58,237,0.8), 0 0 60px rgba(6,182,212,0.3); }
+  }
+  .btn-pulse { animation: pulse-glow 1.5s ease-in-out infinite; }
+
+  /* Slide up */
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .slide-up { animation: slideUp 0.6s ease-out forwards; }
+  .slide-up-d1 { animation-delay: 0.1s; opacity: 0; }
+  .slide-up-d2 { animation-delay: 0.2s; opacity: 0; }
+  .slide-up-d3 { animation-delay: 0.3s; opacity: 0; }
+  .slide-up-d4 { animation-delay: 0.4s; opacity: 0; }
+
+  /* Verdict slide in */
+  @keyframes verdictIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .verdict-in { animation: verdictIn 0.5s ease-out forwards; }
+
+  /* Count animation handled in JS */
+
+  /* VS glow */
+  @keyframes vsGlow {
+    0%, 100% { box-shadow: 0 0 10px rgba(124,58,237,0.5); }
+    50% { box-shadow: 0 0 25px rgba(124,58,237,0.9), 0 0 40px rgba(6,182,212,0.4); }
+  }
+  .vs-glow { animation: vsGlow 2s ease-in-out infinite; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0f0f1a; }
+  ::-webkit-scrollbar-thumb { background: #7c3aed55; border-radius: 3px; }
+
+  /* Textarea */
+  textarea:focus { outline: none; box-shadow: 0 0 0 2px rgba(124,58,237,0.5); }
+
+  /* Progress bar */
+  .progress-track { background: #1e1e3a; border-radius: 9999px; overflow: hidden; height: 10px; }
+  .progress-a { background: linear-gradient(90deg, #7c3aed, #a78bfa); transition: width 0.8s ease; border-radius: 9999px 0 0 9999px; }
+  .progress-b { background: linear-gradient(90deg, #06b6d4, #22d3ee); transition: width 0.8s ease; border-radius: 0 9999px 9999px 0; }
+
+  /* Card hover */
+  .model-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+  .model-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,58,237,0.15); }
+
+  /* History item */
+  .history-item { transition: background 0.2s; }
+  .history-item:hover { background: rgba(124,58,237,0.08); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="text-center py-10 slide-up" style="background: linear-gradient(180deg, #0f0f1a 0%, #13132a 100%);">
+  <h1 class="text-4xl md:text-5xl font-black tracking-tight">
+    <span class="bg-gradient-to-r from-purple-500 via-cyan-400 to-purple-500 bg-clip-text text-transparent">⚔️ LLM Battle Arena</span>
+  </h1>
+  <p class="mt-3 text-base md:text-lg" style="color:#64748b;">Ask anything. Let the models fight.</p>
+</header>
+
+<!-- MAIN ARENA -->
+<main class="max-w-5xl mx-auto px-4 pb-16">
+
+  <!-- Arena Card with animated border -->
+  <section class="arena-card-border slide-up slide-up-d1 mb-10">
+    <div class="arena-card-inner p-6 md:p-10">
+
+      <!-- Input -->
+      <div class="mb-6">
+        <textarea id="questionInput" rows="3" placeholder="Type your question and start the battle..."
+          class="w-full rounded-xl px-5 py-4 text-base resize-none"
+          style="background:#12122a; border:1px solid rgba(124,58,237,0.3); color:#e2e8f0;"></textarea>
+      </div>
+      <div class="text-center mb-8">
+        <button id="battleBtn" onclick="startBattle()"
+          class="px-10 py-3.5 rounded-xl font-bold text-lg text-white transition-all duration-300 hover:scale-105 cursor-pointer"
+          style="background:linear-gradient(135deg,#7c3aed,#6d28d9,#06b6d4); border:none;">
+          ⚡ Battle
+        </button>
+      </div>
+
+      <!-- Model Cards -->
+      <div class="flex flex-col md:flex-row gap-4 md:gap-0 items-stretch relative">
+
+        <!-- Model A -->
+        <div class="model-card flex-1 rounded-2xl p-5" style="background:#12122a; border:1px solid rgba(124,58,237,0.25);">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="px-3 py-1 rounded-full text-xs font-bold" style="background:rgba(124,58,237,0.2); color:#a78bfa;">LLM A</span>
+          </div>
+          <div id="responseA" class="min-h-[120px] text-sm leading-relaxed" style="font-family:'Courier New',monospace; color:#64748b;">
+            Waiting for battle...
+          </div>
+          <div id="shimmerA" class="hidden shimmer rounded-lg mt-3" style="height:60px;"></div>
+        </div>
+
+        <!-- VS Divider -->
+        <div class="flex items-center justify-center md:mx-4 my-2 md:my-0">
+          <div class="vs-glow w-12 h-12 rounded-full flex items-center justify-center font-black text-sm"
+            style="background:linear-gradient(135deg,#7c3aed,#06b6d4); color:#fff;">VS</div>
+        </div>
+
+        <!-- Model B -->
+        <div class="model-card flex-1 rounded-2xl p-5" style="background:#12122a; border:1px solid rgba(6,182,212,0.25);">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="px-3 py-1 rounded-full text-xs font-bold" style="background:rgba(6,182,212,0.2); color:#22d3ee;">LLM B</span>
+          </div>
+          <div id="responseB" class="min-h-[120px] text-sm leading-relaxed" style="font-family:'Courier New',monospace; color:#64748b;">
+            Waiting for battle...
+          </div>
+          <div id="shimmerB" class="hidden shimmer rounded-lg mt-3" style="height:60px;"></div>
+        </div>
+      </div>
+
+      <!-- Verdict Panel -->
+      <div id="verdictPanel" class="hidden mt-8 rounded-2xl p-6 text-center" style="background:#12122a; border:1px solid rgba(124,58,237,0.2);">
+        <div id="verdictBadge" class="text-2xl font-black mb-2"></div>
+        <p id="verdictReason" class="italic text-sm" style="color:#94a3b8;"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- SCOREBOARD -->
+  <section class="slide-up slide-up-d2 mb-10">
+    <h2 class="text-xl font-bold mb-5 text-center" style="color:#a78bfa;">📊 Scoreboard</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+      <!-- Score A -->
+      <div class="rounded-2xl p-6 text-center" style="background:#1a1a2e; border:1px solid rgba(124,58,237,0.25);">
+        <div class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#a78bfa;">Model A Wins</div>
+        <div id="scoreA" class="text-5xl font-black" style="color:#7c3aed;">0</div>
+      </div>
+      <!-- Score B -->
+      <div class="rounded-2xl p-6 text-center" style="background:#1a1a2e; border:1px solid rgba(6,182,212,0.25);">
+        <div class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#22d3ee;">Model B Wins</div>
+        <div id="scoreB" class="text-5xl font-black" style="color:#06b6d4;">0</div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="rounded-2xl p-5" style="background:#1a1a2e; border:1px solid rgba(124,58,237,0.15);">
+      <div class="flex justify-between text-xs font-semibold mb-2">
+        <span style="color:#a78bfa;">Model A</span>
+        <span id="totalBattles" style="color:#64748b;">0 battles</span>
+        <span style="color:#22d3ee;">Model B</span>
+      </div>
+      <div class="progress-track flex">
+        <div id="progressA" class="progress-a" style="width:50%;"></div>
+        <div id="progressB" class="progress-b" style="width:50%;"></div>
+      </div>
+      <div class="text-center mt-4">
+        <button onclick="resetScores()" class="text-xs px-4 py-1.5 rounded-lg cursor-pointer transition-colors duration-200"
+          style="background:rgba(100,116,139,0.15); color:#64748b; border:1px solid rgba(100,116,139,0.2);"
+          onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#64748b'">Reset Scores</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BATTLE HISTORY -->
+  <section class="slide-up slide-up-d3">
+    <h2 class="text-xl font-bold mb-5 text-center" style="color:#a78bfa;">🕘 Battle History</h2>
+    <div id="historyList" class="rounded-2xl overflow-hidden" style="background:#1a1a2e; border:1px solid rgba(124,58,237,0.15); max-height:280px; overflow-y:auto;">
+      <div class="p-6 text-center text-sm" style="color:#64748b;">No battles yet. Start one above!</div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// --- STATE ---
+let scoreA = 0, scoreB = 0, ties = 0, battling = false;
+const history = [];
+
+const fakeA = "This is a well-structured answer from Model A covering the key concepts thoroughly with clear examples and practical insights.";
+const fakeB = "Model B here with a concise, direct answer that gets straight to the point without unnecessary verbosity.";
+
+const reasons = {
+  A: "Model A provided more depth and practical examples.",
+  B: "Model B was more concise and accurate.",
+  tie: "Both models showed equal quality in different dimensions."
+};
+
+// --- ELEMENTS ---
+const $ = id => document.getElementById(id);
+
+// --- BATTLE ---
+async function startBattle() {
+  if (battling) return;
+  const q = $('questionInput').value.trim();
+  if (!q) { $('questionInput').style.boxShadow = '0 0 0 2px #ef4444'; setTimeout(() => $('questionInput').style.boxShadow = '', 1200); return; }
+
+  battling = true;
+  const btn = $('battleBtn');
+  btn.textContent = '⚡ Battling...';
+  btn.classList.add('btn-pulse');
+  btn.style.opacity = '0.8';
+  btn.style.pointerEvents = 'none';
+
+  // Reset
+  $('responseA').textContent = '';
+  $('responseB').textContent = '';
+  $('responseA').style.color = '#e2e8f0';
+  $('responseB').style.color = '#e2e8f0';
+  $('shimmerA').classList.remove('hidden');
+  $('shimmerB').classList.remove('hidden');
+  $('verdictPanel').classList.add('hidden');
+
+  // Delay before typing
+  await sleep(1500);
+  $('shimmerA').classList.add('hidden');
+  $('shimmerB').classList.add('hidden');
+
+  // Typewriter both simultaneously
+  await Promise.all([ typewrite('responseA', fakeA, 25), typewrite('responseB', fakeB, 30) ]);
+
+  await sleep(500);
+
+  // Pick winner
+  const outcomes = ['A', 'B', 'tie'];
+  const winner = outcomes[Math.floor(Math.random() * 3)];
+
+  // Update scores
+  if (winner === 'A') { animateCount('scoreA', scoreA, ++scoreA); }
+  else if (winner === 'B') { animateCount('scoreB', scoreB, ++scoreB); }
+  else { ties++; }
+
+  updateProgress();
+
+  // Verdict
+  showVerdict(winner);
+
+  // History
+  addHistory(q, winner);
+
+  // Re-enable
+  btn.textContent = '⚡ Battle';
+  btn.classList.remove('btn-pulse');
+  btn.style.opacity = '1';
+  btn.style.pointerEvents = 'auto';
+  battling = false;
+
+  // Smooth scroll to verdict
+  $('verdictPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function typewrite(elId, text, speed) {
+  return new Promise(resolve => {
+    const el = $(elId);
+    let i = 0;
+    const iv = setInterval(() => {
+      el.textContent += text[i];
+      i++;
+      if (i >= text.length) { clearInterval(iv); resolve(); }
+    }, speed);
+  });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showVerdict(winner) {
+  const panel = $('verdictPanel');
+  const badge = $('verdictBadge');
+  const reason = $('verdictReason');
+
+  panel.classList.remove('hidden', 'verdict-in');
+  void panel.offsetWidth; // force reflow
+  panel.classList.add('verdict-in');
+
+  if (winner === 'A') {
+    badge.textContent = '🏆 Model A Wins!';
+    badge.style.color = '#10b981';
+    panel.style.borderColor = 'rgba(16,185,129,0.4)';
+  } else if (winner === 'B') {
+    badge.textContent = '🏆 Model B Wins!';
+    badge.style.color = '#06b6d4';
+    panel.style.borderColor = 'rgba(6,182,212,0.4)';
+  } else {
+    badge.textContent = '🤝 It\'s a Tie!';
+    badge.style.color = '#94a3b8';
+    panel.style.borderColor = 'rgba(148,163,184,0.3)';
+  }
+  reason.textContent = reasons[winner];
+}
+
+function animateCount(elId, from, to) {
+  const el = $(elId);
+  const duration = 600;
+  const start = performance.now();
+  function tick(now) {
+    const p = Math.min((now - start) / duration, 1);
+    el.textContent = Math.round(from + (to - from) * p);
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function updateProgress() {
+  const total = scoreA + scoreB + ties;
+  $('totalBattles').textContent = total + ' battle' + (total !== 1 ? 's' : '');
+  const pA = total ? (scoreA / total) * 100 : 50;
+  const pB = total ? (scoreB / total) * 100 : 50;
+  const pT = total ? (ties / total) * 100 : 0;
+  $('progressA').style.width = Math.max(pA, 2) + '%';
+  $('progressB').style.width = Math.max(pB, 2) + '%';
+}
+
+function addHistory(question, winner) {
+  const now = new Date();
+  const ts = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const snippet = question.length > 50 ? question.slice(0, 50) + '…' : question;
+  history.unshift({ snippet, winner, ts });
+  if (history.length > 5) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = $('historyList');
+  if (!history.length) { el.innerHTML = '<div class="p-6 text-center text-sm" style="color:#64748b;">No battles yet.</div>'; return; }
+  el.innerHTML = history.map((h, i) => {
+    const badgeColor = h.winner === 'A' ? '#10b981' : h.winner === 'B' ? '#06b6d4' : '#94a3b8';
+    const badgeText = h.winner === 'A' ? 'A Won' : h.winner === 'B' ? 'B Won' : 'Tie';
+    return `<div class="history-item flex items-center justify-between px-5 py-3 ${i < history.length - 1 ? 'border-b' : ''}" style="border-color:rgba(124,58,237,0.1);">
+      <span class="text-sm truncate flex-1 mr-3" style="color:#e2e8f0;">${h.snippet}</span>
+      <span class="px-2 py-0.5 rounded text-xs font-bold mr-3" style="background:${badgeColor}22; color:${badgeColor};">${badgeText}</span>
+      <span class="text-xs" style="color:#64748b;">${h.ts}</span>
+    </div>`;
+  }).join('');
+}
+
+function resetScores() {
+  scoreA = 0; scoreB = 0; ties = 0;
+  $('scoreA').textContent = '0';
+  $('scoreB').textContent = '0';
+  updateProgress();
+  history.length = 0;
+  renderHistory();
+}
+</script>
+</body>
+</html>
