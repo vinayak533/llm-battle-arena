@@ -1,55 +1,113 @@
-# ⚔️ LLM Battle Arena
+<div align="center">
 
-Compare two language models on the same question, then ask a third model to judge their answers.
+<h1>⚔️ LLM Battle Arena</h1>
 
-![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
-![LlamaIndex 0.14.13](https://img.shields.io/badge/LlamaIndex-0.14.13-7C3AED)
-![Groq API](https://img.shields.io/badge/Inference-Groq-F55036)
-![HTML · Tailwind CSS · JavaScript](https://img.shields.io/badge/Web-HTML%20%2F%20Tailwind%20%2F%20JavaScript-06B6D4)
+<p>Compare two language models on the same question with a configurable AI judge, a clear evaluation rubric, and reasoned verdicts.</p>
 
-## 🚀 Overview
+<p>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&amp;logoColor=white&amp;style=flat" alt="Python 3.10 or newer" width="108">
+  <img src="https://img.shields.io/badge/LlamaIndex-0.14.13-7C3AED?style=flat" alt="LlamaIndex 0.14.13" width="132">
+  <img src="https://img.shields.io/badge/Inference-Groq-F55036?style=flat" alt="Inference through the Groq API" width="106">
+  <img src="https://img.shields.io/badge/Web-HTML%20%2F%20Tailwind%20%2F%20JavaScript-06B6D4?style=flat" alt="HTML, Tailwind CSS, and JavaScript frontend" width="248">
+  <a href="https://github.com/vinayak533/llm-battle-arena/actions/workflows/gg.yml"><img src="https://img.shields.io/github/actions/workflow/status/vinayak533/llm-battle-arena/gg.yml?branch=main&amp;label=CI&amp;style=flat" alt="GitHub Actions workflow status on main" width="108"></a>
+</p>
 
-LLM Battle Arena is a small implementation of **LLM-as-a-Judge** for exploring answer quality. It includes a Python command-line evaluator and an interactive web demo.
+<img src="images/01-arena-overview.png" alt="LLM Battle Arena showing question input, two response panels, a zeroed scoreboard, and empty battle history" width="960">
 
-| Entry point | What it does | Requirements |
-| --- | --- | --- |
-| [`main.py`](main.py) | Sends five sample questions to two Groq-hosted models, asks a judge model to choose a winner, and prints final scores. | Python, installed dependencies, a Groq API key, and accessible model IDs. |
-| [`index.html`](index.html) | Demonstrates the comparison interface, verdicts, scoreboard, and recent history. | A modern browser; internet access for external styles and fonts. |
+<p><sub>Standalone browser demo before the first battle. Live model evaluation runs through the Python CLI.</sub></p>
 
-**The browser demo runs independently of Python.** Its responses are fixed example text, and its verdicts are selected randomly. It does not call Groq or evaluate the submitted question. The Python script contains the real model integration.
+<p>
+  <a href="#demo--screenshots">Demo</a> |
+  <a href="#docs">Docs</a> |
+  <a href="#architecture">Architecture</a> |
+  <a href="#getting-started">Quickstart</a>
+</p>
 
-![Arena overview with question input, two model panels, a zeroed scoreboard, and empty history](images/01-arena-overview.png)
+</div>
 
-*The browser demo before the first battle.*
+<a id="docs"></a>
+<details>
+<summary>Documentation contents</summary>
 
-[Features](#-key-features) · [AI evaluation](#-aiml-capabilities) · [Architecture](#-architecture--workflow) · [Showcase](#-project-showcase) · [Setup](#-installation--setup) · [Run](#-how-to-run) · [Configuration](#-configuration) · [Limitations](#-limitations--requirements)
+- [The problem and the solution](#the-problem-and-the-solution)
+- [Key features](#key-features)
+- [Demo / Screenshots](#demo--screenshots)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Engineering highlights](#engineering-highlights)
+- [Getting started](#getting-started)
+- [Project structure](#project-structure)
+- [Testing and quality](#testing-and-quality)
+- [Roadmap](#roadmap)
+- [Author](#author)
+- [License and acknowledgements](#license-and-acknowledgements)
+
+</details>
+
+## The problem and the solution
+
+Comparing LLM answers requires a shared question, explicit criteria, and a reason for preferring one response.
+LLM Battle Arena sends the same prompt to two Groq-hosted models, then asks a separately configured judge to return a winner and explanation.
+The Python evaluator prints answers, judgments, and cumulative wins; the browser demo makes the comparison workflow easy to explore.
+
+**The browser uses fixed example answers and random verdicts. It runs independently of Python and does not evaluate submitted questions.**
+
+<a id="key-features"></a>
 
 ## ✨ Key features
 
-| Python evaluator | Browser demo |
-| --- | --- |
-| Two candidate models and a separately configured judge. | Side-by-side response cards with simultaneous typewriter animations. |
-| A shared question and explicit evaluation criteria. | Nonempty question validation and duplicate-battle prevention. |
-| JSON verdict with a winner and short explanation. | Model A, Model B, and tie verdict displays. |
-| Per-question answers, judgments, and cumulative win counts. | Animated win counters, total battles, and a comparison bar. |
-| Fallback handling for completion errors and invalid judge JSON. | Five most recent battles, timestamps, and a score/history reset. |
+- **Three configurable model roles:** select candidate A, candidate B, and the judge through environment variables without changing the evaluation loop.
+- **An explicit judging rubric:** prioritize correctness, completeness, clarity, then safety and best practices, so each verdict has a stated basis.
+- **Inspectable evaluation output:** print both answers, the judge's `winner` and `reason`, and final win counts; each win adds one point and ties add none.
+- **Completion and JSON error handling:** report generation failures and return documented judge fallbacks, making errors visible in terminal output.
+- **Coordinated browser interactions:** reject empty questions, prevent duplicate battle starts, and animate both response cards simultaneously.
+- **Session summaries:** display animated win counters, total battles, a comparison bar, and the five most recent questions with outcomes and timestamps.
+- **A browser demo without an install step:** open one HTML file to explore A, B, and tie verdicts, with responsive layouts and a score/history reset.
 
-## 🧠 AI/ML capabilities
+<p align="center">
+  <img src="images/02-question-ready.png" alt="An AWS IAM question entered in the arena, with both model response panels waiting for Battle" width="960">
+  <br><sub>Question entry: the demo records your question in history while displaying its fixed example responses.</sub>
+</p>
 
-The evaluator uses LlamaIndex's `Groq` adapter for **all three model roles**. Each is initialized with `temperature=0.0`. This is inference and prompt-based evaluation; the repository contains no model training, fine-tuning, retrieval pipeline, or dataset benchmark.
+<a id="demo--screenshots"></a>
 
-For each question, the judge receives the original prompt and both answers. Its instructions prioritize:
+## 📸 Demo / Screenshots
 
-| Priority | Criterion | Intended focus |
-| --- | --- | --- |
-| 1 | Correctness | Accuracy of the answer. |
-| 2 | Completeness | Coverage of the question. |
-| 3 | Clarity | Ease of understanding. |
-| 4 | Safety and best practices | Appropriate, responsible guidance. |
+These are captures of the existing browser demo. Answers, explanations, and scores illustrate interface behavior; they are simulated evaluation outcomes.
 
-The judge is asked to return `winner` (`A`, `B`, or `tie`) and `reason`. The script strips surrounding Markdown code fences, parses JSON, and counts one point for each win. Ties add no points. There are no numeric scores for individual criteria.
+<table>
+  <tr>
+    <th>Model A wins</th>
+    <th>Model B wins</th>
+  </tr>
+  <tr>
+    <td><img src="images/03-model-a-demo-verdict.png" alt="Completed demo responses with a green Model A win verdict and preset explanation" width="480"></td>
+    <td><img src="images/04-model-b-demo-verdict.png" alt="Completed demo responses with a cyan Model B win verdict and preset explanation" width="480"></td>
+  </tr>
+  <tr>
+    <td>Green styling highlights A and its explanation.</td>
+    <td>Cyan styling highlights B and its explanation.</td>
+  </tr>
+  <tr>
+    <th>Tie verdict</th>
+    <th>Scoreboard and recent history</th>
+  </tr>
+  <tr>
+    <td><img src="images/05-tie-demo-verdict.png" alt="Completed demo responses with a neutral tie verdict and explanation" width="480"></td>
+    <td><img src="images/06-scoreboard-and-battle-history.png" alt="Accumulated demo wins, seven total battles, a comparison bar, and the five latest timestamped history entries" width="480"></td>
+  </tr>
+  <tr>
+    <td>A neutral tie leaves both win counters unchanged.</td>
+    <td>Scores accumulate during the page session; history retains the latest five battles.</td>
+  </tr>
+</table>
 
-## 🏗️ Architecture & workflow
+Try `Explain AWS IAM in simple terms`, click **Battle**, and wait for the responses and verdict. Repeat to populate history, then click **Reset Scores**. Outcomes vary randomly, including for repeated questions.
+Reset clears scores and history while leaving the latest response cards and verdict visible. Reloading starts a fresh session.
+
+<a id="architecture"></a>
+
+## 🏗️ Architecture
 
 ```mermaid
 flowchart TD
@@ -64,92 +122,82 @@ flowchart TD
     DEMO --> UI["Animated cards, scoreboard, recent history"]
 ```
 
-**Python:** questions run one at a time. For each question, Model A, Model B, and the judge are called sequentially. A successful five-question run makes 15 completion calls, before any retries performed by dependencies.
+- **One provider adapter:** LlamaIndex's `Groq` adapter handles all three roles, each initialized with `temperature=0.0`; model selection comes from configuration.
+- **Sequential evaluation:** questions run one at a time, with A, B, then the judge. A successful five-question run makes 15 completion calls, before any dependency retries.
+- **Independent entry points:** the CLI performs inference; static HTML and vanilla JavaScript handle the demo. There is no HTTP API connecting them.
+- **In-memory state:** Python scores reset on each run; browser scores and history reset on reload. No database or result export is implemented.
+- **Simple frontend delivery:** Tailwind CSS and Inter load externally, avoiding a frontend build step while requiring network access for the intended styling and font.
 
-**Browser:** JavaScript handles input, animation, random outcome selection, and in-memory state. There is no HTTP API connecting the demo to the evaluator and no database.
+<a id="tech-stack"></a>
 
 ## 🛠️ Tech stack
 
-| Component | Technology | Role |
+| Area | Technology | Purpose |
 | --- | --- | --- |
-| Runtime | Python 3.10+ | Command-line evaluation. |
-| LLM framework | `llama-index==0.14.13` | LlamaIndex dependencies. |
-| Model adapter | `llama-index-llms-groq==0.4.1` | Groq-hosted completions. |
-| Supporting adapter | `llama-index-llms-openai==0.6.13` | Pinned dependency; the application configures only Groq models. |
-| Environment loading | `python-dotenv==1.2.1` | Loads local `.env` configuration. |
-| Interface | HTML, Tailwind CSS CDN, vanilla JavaScript | Responsive layout, animations, and demo state. |
-| Typography | Google Fonts / Inter | Browser UI font. |
-| Automation | GitHub Actions | Installs dependencies and runs `main.py` on pushes and pull requests to `main`. |
+| Frontend | HTML, vanilla JavaScript, Tailwind CSS CDN | Responsive demo, typewriter animations, verdicts, and session state. |
+| Frontend | Google Fonts / Inter | Interface typography. |
+| Backend | Python 3.10+ | Command-line generation, judging, and score aggregation. |
+| Backend | `python-dotenv==1.2.1` | Load local `.env` configuration. |
+| AI / ML | `llama-index==0.14.13` | LlamaIndex framework dependencies. |
+| AI / ML | `llama-index-llms-groq==0.4.1` | Application adapter for Groq-hosted completions. |
+| AI / ML | `llama-index-llms-openai==0.6.13` | Pinned supporting dependency; application model roles use Groq. |
+| Data | Python counters; JavaScript counters and history array | Temporary scores and the latest five browser battles. |
+| Infra | Groq API | Hosted inference for the Python evaluator. |
+| DevOps | GitHub Actions | Dependency installation and script execution on pushes and pull requests to `main`. |
 
-## 📸 Project showcase
+The AI workflow is inference and prompt-based evaluation. Model training, fine-tuning, retrieval pipelines, and dataset benchmarks are not implemented.
 
-These six screenshots, including the overview above, are captures of the existing browser demo. The displayed answers, explanations, and win counts illustrate its UI behavior; they are not model evaluation results.
+## Engineering highlights
 
-### Question entry
-
-![AWS IAM question entered and ready to submit, with both model panels waiting](images/02-question-ready.png)
-
-*A sample question ready for the Battle button. The demo records the question in history while displaying its fixed example responses.*
-
-### Verdict states
-
-<table>
-  <tr>
-    <th>Model A wins</th>
-    <th>Model B wins</th>
-  </tr>
-  <tr>
-    <td><img src="images/03-model-a-demo-verdict.png" alt="Completed demo responses with a Model A win and explanation" width="100%"></td>
-    <td><img src="images/04-model-b-demo-verdict.png" alt="Completed demo responses with a Model B win and explanation" width="100%"></td>
-  </tr>
-  <tr>
-    <td>A green verdict highlights Model A and its preset explanation.</td>
-    <td>A cyan verdict highlights Model B and its preset explanation.</td>
-  </tr>
-</table>
+| Problem | Approach | Verifiable result |
+| --- | --- | --- |
+| Model preferences need an explicit basis. | Give the judge the original question, both answers, and ordered evaluation criteria. | Each parsed verdict carries a winner and explanation; wins accumulate independently for A and B. |
+| Judge output can contain Markdown or invalid JSON. | Strip surrounding code fences before `json.loads`; catch parsing and completion errors. | Fenced JSON is accepted; malformed JSON and judge exceptions return distinct fallback reasons. |
+| Repeated clicks can overlap a browser battle. | Guard entry with `battling`, block button interaction, and await both typewriters with `Promise.all`. | Duplicate battle starts are ignored; the verdict and score update follow completion of both responses. |
+| Browser history can grow with repeated use. | Insert newest entries first, cap history at five, and truncate question snippets after 50 characters. | The UI retains a bounded, timestamped history and supports a score/history reset. |
 
 <details>
-<summary>View the tie verdict</summary>
+<summary>Evaluation boundaries and failure semantics</summary>
 
-![Completed demo responses with a neutral tie verdict and explanation](images/05-tie-demo-verdict.png)
-
-*A tie uses a neutral verdict style and leaves both win counters unchanged.*
+- **Rubric, not criterion scores:** the priorities are correctness, completeness, clarity, and safety/best practices. The judge returns `winner` (`A`, `B`, or `tie`) and `reason`; individual criteria receive no numeric scores.
+- **Failures can resemble ties:** generation exceptions return `Error in response`. Judge exceptions return a tie with `Judge failed`; invalid JSON returns a tie with `Invalid JSON from judge`. Inspect printed errors and reasons: a 0–0 tie or exit code `0` can accompany failed API calls.
+- **JSON parsing is not schema validation:** missing keys, unexpected JSON types, and unsupported winner values are not comprehensively handled.
+- **One judge provides a qualitative preference:** there are no reference answers, repeated trials, bias controls, or statistical confidence estimates. Win counts alone do not establish model quality.
+- **Model access is account-dependent:** the CLI requires a valid API key and accessible model IDs. Unavailable models produce provider errors; the screenshots demonstrate the browser demo.
 
 </details>
 
-### Scoreboard & recent history
+<a id="getting-started"></a>
 
-![Accumulated demo wins, seven total battles, comparison bar, and the five latest history entries](images/06-scoreboard-and-battle-history.png)
+## 🚀 Getting started
 
-*Win totals accumulate during the current page session. History shows the five latest questions, outcomes, and timestamps; Reset Scores clears both scores and history.*
-
-## ⚙️ Installation & setup
-
-### Prerequisites
-
-- **For Python evaluation:** Python 3.10 or newer, `pip`, internet access, and a Groq API key with access to the model IDs you configure. The existing CI targets Python 3.10; the local environment used to check these instructions is Python 3.13.
-- **For the browser demo:** a modern browser. No API key, Python packages, or frontend build step is needed when opening the HTML file directly.
-
-### Clone the repository
+**Prerequisites:** Git to clone; a modern browser for the demo. Python evaluation additionally needs Python 3.10+, `pip`, internet access, and a Groq API key with access to your chosen model IDs.
+The browser needs internet access for styles and fonts; it needs no API key or Python dependencies.
 
 ```bash
 git clone https://github.com/vinayak533/llm-battle-arena.git
 cd llm-battle-arena
 ```
 
-### Set up Python
+### Run the browser demo
+
+Open [`index.html`](index.html) directly in your browser. With Python available, you can also serve it locally:
+
+```bash
+python -m http.server 8000 --bind 127.0.0.1
+```
+
+On macOS/Linux, use `python3` if `python` is unavailable. Visit [http://127.0.0.1:8000/index.html](http://127.0.0.1:8000/index.html); stop the server with `Ctrl+C`.
+This is a static file server. It does not connect the demo to Groq.
+
+### Run the Python evaluator
+
+Install the pinned dependencies in a virtual environment. Direct interpreter paths work without shell activation.
 
 **Windows PowerShell**
 
 ```powershell
 python -m venv venv
-.\venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-```
-
-If local policy prevents script activation, use the virtual environment's interpreter directly:
-
-```powershell
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
@@ -157,67 +205,59 @@ If local policy prevents script activation, use the virtual environment's interp
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate
-python -m pip install -r requirements.txt
+venv/bin/python -m pip install -r requirements.txt
 ```
 
-Create or update `.env` in the repository root using the variables below. There is no `.env.example` file in this repository.
-
-## 🔧 Configuration
-
-| Variable | Required for Python | Purpose |
-| --- | --- | --- |
-| `GROQ_API_KEY` | Yes | Authenticates requests to Groq. |
-| `LLM_A` | Yes | Exact Groq model ID for candidate A. |
-| `LLM_B` | Yes | Exact Groq model ID for candidate B. |
-| `JUDGE_LLM` | Yes | Exact Groq model ID for the evaluator. |
+Create or update `.env` in the repository root. No `.env.example` is shipped. Fill the following variables with your own values; keep credentials local and do not commit API keys.
 
 ```dotenv
-GROQ_API_KEY=replace_with_your_groq_api_key
-LLM_A=replace_with_an_accessible_groq_model_id
-LLM_B=replace_with_another_accessible_groq_model_id
-JUDGE_LLM=replace_with_an_accessible_groq_judge_model_id
+GROQ_API_KEY=
+LLM_A=
+LLM_B=
+JUDGE_LLM=
 ```
 
-The values above are **placeholders**, not runnable model IDs. Obtain your key and confirm model access in the [Groq console](https://console.groq.com/). Keep credentials local and do not commit API keys.
+| Variable | Required | Value to supply |
+| --- | --- | --- |
+| `GROQ_API_KEY` | Yes | Your Groq API key. |
+| `LLM_A` | Yes | Accessible Groq model ID for candidate A. |
+| `LLM_B` | Yes | Accessible Groq model ID for candidate B. |
+| `JUDGE_LLM` | Yes | Accessible Groq model ID for the judge. |
 
-`load_dotenv()` loads `.env`; existing process environment variables take precedence. The script provides no default model IDs. Temperature is fixed in `main.py`, and questions are defined in its `test_prompts` list. Changing `.env` does not affect the browser demo.
+Obtain a key and confirm model access in the [Groq console](https://console.groq.com/). Empty values above are placeholders, not runnable configuration.
+`load_dotenv()` loads `.env`; existing process environment variables take precedence. There are no default model IDs. Configuration changes apply to Python; the browser demo remains independent.
 
-## ▶️ How to run
-
-### Real model evaluation
-
-From the repository root, with the virtual environment activated and configuration completed:
-
-```bash
-python main.py
-```
-
-Without activation on Windows:
+**Windows PowerShell**
 
 ```powershell
 .\venv\Scripts\python.exe main.py
 ```
 
-The terminal prints each question, Answer A, Answer B, the judge's winner and reason, then final scores and an overall winner or tie. There is no interactive CLI prompt or command-line argument parser.
-
-### Browser demo
-
-Open [`index.html`](index.html) from your local checkout in a browser. Alternatively, with Python available, serve the project locally:
+**macOS / Linux**
 
 ```bash
-python -m http.server 8000 --bind 127.0.0.1
+venv/bin/python main.py
 ```
 
-Visit [http://127.0.0.1:8000/index.html](http://127.0.0.1:8000/index.html). This serves static files; it does not connect the UI to Groq. Stop the server with `Ctrl+C`.
+The CLI runs five beginner-oriented questions covering AWS IAM, security groups versus NACLs, Docker, CI/CD, and Kubernetes. It prints each question, both answers, the winner and reason, then final scores and an overall winner or tie.
+There is no interactive prompt or argument parser. Results go to the terminal; saving or exporting them is not implemented.
 
-## 💡 Usage examples
+<details>
+<summary>Optional environment activation and custom questions</summary>
 
-**Try the interface:** enter `Explain AWS IAM in simple terms`, click **Battle**, and wait for both animated responses and the verdict. Repeat to populate the scoreboard and recent history, then click **Reset Scores**. Outcomes vary randomly, even for the same question.
+You can activate the environment before using `python` directly. On Windows, direct interpreter paths above also work if local policy prevents script activation.
 
-**Run the included evaluation:** `python main.py` compares answers to five beginner-oriented questions covering AWS IAM, security groups versus NACLs, Docker, CI/CD, and Kubernetes.
+```powershell
+.\venv\Scripts\Activate.ps1
+python main.py
+```
 
-**Evaluate your own questions:** edit `test_prompts` in `main.py`, then rerun the script. For example:
+```bash
+source venv/bin/activate
+python main.py
+```
+
+Edit `test_prompts` in [`main.py`](main.py) to evaluate your own questions, then rerun:
 
 ```python
 test_prompts = [
@@ -227,49 +267,76 @@ test_prompts = [
 ]
 ```
 
-To compare a different pair of models, update `LLM_A` and `LLM_B` while keeping the same questions and judge configuration. Results are printed to the terminal; saving or exporting them is not implemented.
+To compare different candidates, change `LLM_A` and `LLM_B` while retaining the same questions and judge configuration. Temperature is fixed in `main.py`.
 
-## 📂 Project structure
+</details>
+
+## Project structure
 
 ```text
 llm-battle-arena/
-├── .github/
-│   └── workflows/
-│       └── gg.yml              # Dependency installation and script execution
-├── images/
-│   ├── 01-arena-overview.png
-│   ├── 02-question-ready.png
-│   ├── 03-model-a-demo-verdict.png
-│   ├── 04-model-b-demo-verdict.png
-│   ├── 05-tie-demo-verdict.png
-│   └── 06-scoreboard-and-battle-history.png
-├── index.html                  # Standalone simulated browser demo
-├── main.py                     # Groq generation, judging, and terminal scores
-├── requirements.txt            # Pinned direct Python dependencies
-└── README.md
+├── .github/workflows/
+│   └── gg.yml           # Install dependencies and run the evaluator in CI
+├── images/              # Six browser screenshots used in this README
+├── index.html           # Standalone demo: input, animations, verdicts, and history
+├── main.py              # Groq candidate generation, judging, and terminal scores
+├── requirements.txt     # Four pinned direct Python dependencies
+└── README.md            # Project overview, architecture, and setup
 ```
 
-Local setup also uses `.env` for configuration and `venv/` for the Python environment.
+Local configuration uses `.env`; setup creates `venv/` for the Python environment.
 
-## 🛡️ Limitations & requirements
+<a id="testing-and-quality"></a>
 
-- **Model availability:** a valid key and accessible model IDs are required. Existing model settings are not guaranteed to work for your account; an unavailable model produces a provider error. The screenshots demonstrate only the browser demo.
-- **Failure reporting:** generation exceptions become `Error in response`. Judge exceptions or invalid JSON become a tie with `Judge failed` or `Invalid JSON from judge`. A zero-score tie or exit code `0` can therefore accompany failed API calls; inspect the printed errors and reasons.
-- **Output validation:** valid JSON is parsed without schema validation. Missing keys, an unexpected JSON type, or an unsupported winner value are not comprehensively handled.
-- **Evaluation scope:** one judge supplies a qualitative preference. There are no reference answers, repeated trials, bias controls, or statistical confidence estimates. Win counts alone do not establish model quality.
-- **Temporary state:** Python scores reset on each run. Browser scores and history reset on reload; only the latest five battles are retained. Reset Scores leaves the latest response cards and verdict visible.
-- **Demo dependencies:** Tailwind CSS and Inter load from external services. The page needs network access for its intended styling and font; it has no build pipeline or live inference integration.
-- **Automation scope:** the GitHub Actions workflow runs the script against its configuration. It contains no test assertions and does not establish that model requests succeeded.
+## ✅ Testing and quality
 
-## 🗺️ Possible next steps
+Run dependency and Python syntax checks with your virtual environment's interpreter.
 
-These are development ideas, not implemented capabilities or committed milestones:
+**Windows PowerShell**
 
-- Connect the browser to the evaluator through a server-side API that keeps credentials off the client.
-- Validate configuration and judge output, and distinguish failed evaluations from genuine ties.
-- Accept questions through CLI arguments or input files and export results for later review.
-- Add persistent history, controlled evaluation datasets, and tests that do not require live API access.
+```powershell
+.\venv\Scripts\python.exe -m pip check
+.\venv\Scripts\python.exe -m py_compile main.py
+```
 
----
+**macOS / Linux**
 
-Built by [Vinayak](https://github.com/vinayak533).
+```bash
+venv/bin/python -m pip check
+venv/bin/python -m py_compile main.py
+```
+
+**CI:** [`.github/workflows/gg.yml`](.github/workflows/gg.yml) runs on Ubuntu with Python 3.10 for pushes and pull requests to `main`. It installs dependencies and executes `main.py`; it contains no test assertions and cannot establish that model requests succeeded.
+There is no checked-in automated test suite, linter configuration, or type-check configuration.
+
+**Verification:** the four pinned direct dependencies and `pip check` passed locally on Python 3.13.3. Offline checks exercised the 15-call sequence, fenced-JSON parsing, win aggregation, and error fallbacks. The static demo and all six screenshot URLs returned HTTP 200.
+
+Manual checks during screenshot capture covered empty/whitespace input, duplicate clicks, both typewriter responses, all three verdicts, animated counts, totals and progress, latest-first history, the five-entry cap, long-question truncation, reset, and reload behavior.
+
+<a id="roadmap"></a>
+
+## 🗺️ Roadmap
+
+Completed capabilities and proposed next steps:
+
+- [x] Implement the three-role CLI evaluator and the browser verdict, scoreboard, and history demo.
+- [ ] Connect the browser to a server-side evaluation API that keeps credentials off the client.
+- [ ] Validate configuration and verdict schemas; distinguish failed evaluations from genuine ties.
+- [ ] Accept questions through CLI arguments or input files and export results for later review.
+- [ ] Add persistent history, controlled evaluation datasets, and automated tests that do not require live API access.
+
+## Author
+
+**Vinayak** · [GitHub](https://github.com/vinayak533)
+
+<!-- TODO: add your current professional role and verified LinkedIn, portfolio, and public email links. -->
+
+Looking for AI/ML engineering roles.
+
+## License and acknowledgements
+
+No license file is included in this repository.
+
+<!-- TODO: choose a license and add a LICENSE file. -->
+
+Built with LlamaIndex, Groq, python-dotenv, Tailwind CSS, and the Inter typeface.
